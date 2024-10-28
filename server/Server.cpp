@@ -146,16 +146,6 @@ void	Server::load_mime_types(const std::string& file_path)
 	file.close();
 }
 
-// std::string clean_file_path(const std::string& url)
-// {
-// 	size_t query_pos = url.find('?');
-// 	if (query_pos != std::string::npos)
-// 	{
-// 		return url.substr(0, query_pos); // Return the part before the '?'
-// 	}
-// 	return url; // Return the original URL if no '?' is found
-// }
-
 std::string	Server::process_request(const Request& req)
 {
 	std::string url = req.get_file_path();
@@ -197,7 +187,7 @@ void Server::execute_script(const Request& req)
 	std::vector<std::string> env_strings = 
 	{
 		"QUERY_STRING=" + get_query_string(req.get_file_path()),
-		"REQUEST_METHOD=" + req.get_method(),
+		"REQUEST_METHOD=" + req.get_method_in_string(),
 		"CONTENT_LENGTH=" + std::to_string(req.get_content_len()),
 		"GATEWAY_INTERFACE=CGI/1.1",
 		"SCRIPT_NAME=" + clean_file_path(req.get_file_path()),
@@ -211,12 +201,17 @@ void Server::execute_script(const Request& req)
 		envp.push_back(const_cast<char*>(str.c_str()));
 	envp.push_back(nullptr);
 
+	std::string scriptpath = "/www" + clean_file_path(req.get_file_path());
 	char *args[] = {
 		const_cast<char *>("/usr/bin/python3"),
-		const_cast<char *>(clean_file_path(req.get_file_path()).c_str()),
+		// const_cast<char *>(scriptpath.c_str()),
+		const_cast<char *>("/Users/marykate/Documents/VS_Code_Files/projects/webserv/www/cgi-bin/hello_world.py"),
 		NULL
 	};
+	std::cout << YELLOW("hello from child process!") << std::endl;
 	execve(args[0], args, envp.data());
+	exit(1);
+	// std::cout << "execve() failed - " << strerror(errno) << std::endl;//it goes to the pipe end, will not be visible either way
 }
 
 std::string Server::handle_cgi_request(const Request& req) 
@@ -225,7 +220,6 @@ std::string Server::handle_cgi_request(const Request& req)
 	if (pipe(pipe_fds) == -1)
 		return send_error_message(500); // Internal server error
 
-	(void)req;
 	pid_t pid = fork();
 	if (pid == -1)
 	{
@@ -233,35 +227,38 @@ std::string Server::handle_cgi_request(const Request& req)
 		close(pipe_fds[1]);
 		return send_error_message(500); // Fork failed
 	}
-
-	if (pid == 0) // Child process
+	else if (pid == 0) // Child process
 	{
 		close(pipe_fds[0]); // Close reading end in the child
 		dup2(pipe_fds[1], STDOUT_FILENO); // Redirect stdout to pipe
 		close(pipe_fds[1]);
 
-		// Set up environment variables, if needed
-		// std::string script = req.get_file_path();
-		// const char* args[] = {"/usr/bin/python3", script.c_str(), nullptr};
-		// execve(args[0], args, environ); // Execute CGI script
-		// exit(1); // Exit if exec fails
+		execute_script(req);
+		exit(1); //if i reach here it means execve failed
 	} 
 	else // Parent process
 	{
 		close(pipe_fds[1]); // Close writing end in the parent
 
 		// Read output from CGI script
-		// std::vector<char> buffer(BUFFER_SIZE);
-		// ssize_t bytes_read = read(pipe_fds[0], buffer.data(), buffer.size());
+		std::vector<char> buffer(4 * 4096);
+		ssize_t bytes_read = read(pipe_fds[0], buffer.data(), buffer.size());
+		if (bytes_read <= 0)
+			return send_error_message(500); // Error reading CGI output
 		close(pipe_fds[0]);
 
-		waitpid(pid, nullptr, 0); // Wait for the child to complete
+		// waitpid(pid, nullptr, 0); // Wait for the child to complete
+		//alternatively:
+		int status;
+		waitpid(pid, &status, 0); // Wait for the child to complete
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+			return send_error_message(500); // Indicate CGI execution failed
 
 		// Return CGI response
-		// return std::string(buffer.data(), bytes_read);
-		return (std::string("hello world"));
+		return (std::string(buffer.data(), bytes_read));
+		// return (std::string("hello world"));
 	}
-	return send_error_message(200);//!to be deleted
+	return send_error_message(500);//!to be deleted
 }
 
 std::string	Server::process_get(const Request& req)

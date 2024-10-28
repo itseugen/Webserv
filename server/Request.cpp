@@ -248,6 +248,17 @@ int	Request::get_method(void) const
 	return (_method);
 }
 
+std::string	Request::get_method_in_string(void) const
+{
+	switch (_method)
+	{
+		case GET: return "GET";
+		case DELETE: return "DELETE";
+		case POST: return "POST";
+		default: return "UNKNOWN";
+	}
+}
+
 int	Request::get_fd(void) const
 {
 	return (_fd);
