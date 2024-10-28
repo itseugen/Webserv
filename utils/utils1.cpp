@@ -34,3 +34,11 @@ std::string clean_file_path(const std::string& url)
 	}
 	return url; // Return the original URL if no '?' is found
 }
+
+std::string get_query_string(const std::string& url)
+{
+	size_t query_pos = url.find('?');
+	if (query_pos != std::string::npos)
+		return url.substr(query_pos + 1); // Return the part after '?'
+	return ""; // Return an empty string if no query is found
+}

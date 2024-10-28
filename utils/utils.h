@@ -8,6 +8,7 @@ std::vector<std::string>	tokenize(const std::string& str, const std::string& del
 // some utils for the cgi script-parsing:
 bool ends_with(const std::string& str, const std::string& suffix);
 std::string clean_file_path(const std::string& url);
+std::string get_query_string(const std::string& url);
 
 // to be DELETED later:
 struct ServerData;

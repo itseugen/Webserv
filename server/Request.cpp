@@ -263,6 +263,11 @@ std::string	Request::get_content_type(void) const
 	return (_content_type);
 }
 
+size_t	Request::get_content_len(void) const
+{
+	return (_content_len);
+}
+
 int	Request::get_port(void) const
 {
 	return (_port);

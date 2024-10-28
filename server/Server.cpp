@@ -162,7 +162,8 @@ std::string	Server::process_request(const Request& req)
 	std::cout << RED("get file path returns this here: " << url) << std::endl;
 
 	// we first check if the request is for a CGI file (the .py in our case)
-	if (ends_with(clean_file_path(url), ".py"))
+	std::string scriptpath = clean_file_path(url);
+	if (ends_with(scriptpath, ".py"))
 	{
 		std::cout << "i entered the if .py extension block" << std::endl;
 		return handle_cgi_request(req);
@@ -183,22 +184,58 @@ std::string	Server::process_request(const Request& req)
 	}
 	return (send_error_message(400));
 }
+/*
+Prepare Environment for CGI Execution
+REQUEST_METHOD: The HTTP method (GET, POST, DELETE).
+QUERY_STRING: For GET requests, the query string from the URL.
+CONTENT_LENGTH: For POST requests, the length of the body.
+SCRIPT_FILENAME: The full path to the CGI script.
+PATH_INFO: The full path as expected by the CGI.
+*/
+void Server::execute_script(const Request& req)
+{
+	std::vector<std::string> env_strings = 
+	{
+		"QUERY_STRING=" + get_query_string(req.get_file_path()),
+		"REQUEST_METHOD=" + req.get_method(),
+		"CONTENT_LENGTH=" + std::to_string(req.get_content_len()),
+		"GATEWAY_INTERFACE=CGI/1.1",
+		"SCRIPT_NAME=" + clean_file_path(req.get_file_path()),
+		"SERVER_NAME=" + this->_name,
+		"SERVER_PORT=" + std::to_string(req.get_port()),
+		"SERVER_PROTOCOL=HTTP/1.1"
+	};
+
+	std::vector<char*> envp;
+	for (auto& str : env_strings)
+		envp.push_back(const_cast<char*>(str.c_str()));
+	envp.push_back(nullptr);
+
+	char *args[] = {
+		const_cast<char *>("/usr/bin/python3"),
+		const_cast<char *>(clean_file_path(req.get_file_path()).c_str()),
+		NULL
+	};
+	execve(args[0], args, envp.data());
+}
 
 std::string Server::handle_cgi_request(const Request& req) 
 {
-	
 	int pipe_fds[2];
-	if (pipe(pipe_fds) == -1) {
+	if (pipe(pipe_fds) == -1)
 		return send_error_message(500); // Internal server error
-	}
 
 	(void)req;
 	pid_t pid = fork();
-	if (pid == -1) {
+	if (pid == -1)
+	{
+		close(pipe_fds[0]);
+		close(pipe_fds[1]);
 		return send_error_message(500); // Fork failed
 	}
 
-	if (pid == 0) { // Child process
+	if (pid == 0) // Child process
+	{
 		close(pipe_fds[0]); // Close reading end in the child
 		dup2(pipe_fds[1], STDOUT_FILENO); // Redirect stdout to pipe
 		close(pipe_fds[1]);
@@ -208,7 +245,9 @@ std::string Server::handle_cgi_request(const Request& req)
 		// const char* args[] = {"/usr/bin/python3", script.c_str(), nullptr};
 		// execve(args[0], args, environ); // Execute CGI script
 		// exit(1); // Exit if exec fails
-	} else { // Parent process
+	} 
+	else // Parent process
+	{
 		close(pipe_fds[1]); // Close writing end in the parent
 
 		// Read output from CGI script
