@@ -204,11 +204,12 @@ void Server::execute_script(const Request& req)
 	std::string scriptpath = "/www" + clean_file_path(req.get_file_path());
 	char *args[] = {
 		const_cast<char *>("/usr/bin/python3"),
-		// const_cast<char *>(scriptpath.c_str()),
+		// const_cast<char *>(scriptpath.c_str()), //if its like this, execve tries to open this file and it fails: `/www/cgi-bin/hello_world.py`
+		// but if i give the full path it can open it and then there are other problems:
 		const_cast<char *>("/Users/marykate/Documents/VS_Code_Files/projects/webserv/www/cgi-bin/hello_world.py"),
 		NULL
 	};
-	std::cout << YELLOW("hello from child process!") << std::endl;
+	// std::cout << YELLOW("hello from child process!") << std::endl;
 	execve(args[0], args, envp.data());
 	exit(1);
 	// std::cout << "execve() failed - " << strerror(errno) << std::endl;//it goes to the pipe end, will not be visible either way
