@@ -18,3 +18,19 @@ std::vector<std::string>	tokenize(const std::string& str, const std::string& del
 
 	return (tokens);
 }
+
+bool ends_with(const std::string& str, const std::string& suffix)
+{
+	return str.size() >= suffix.size() && 
+		str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+std::string clean_file_path(const std::string& url)
+{
+	size_t query_pos = url.find('?');
+	if (query_pos != std::string::npos)
+	{
+		return url.substr(0, query_pos); // Return the part before the '?'
+	}
+	return url; // Return the original URL if no '?' is found
+}

@@ -14,12 +14,11 @@ void signal_handler(int signum);
 int main(int argc, char **argv)
 {
 	std::cout << GREEN("🚀 Launching Webserv ... 🚀") << std::endl;
-	if (argc != 2)
+	if (argc > 2 || argc < 1)
 	{
 		std::cout << ERROR("Expected usage: ") << UNDERLINE("./webserv") << " or " << UNDERLINE("./webserv <path_to_config_file>") << std::endl;
 		return 0;
 	}
-
 	//receiving values from the `example1.config`:
 	// fill_server_data(servers); //what the parser from the config will fill out
 	// print_server_data(servers); // for verification
@@ -31,7 +30,11 @@ int main(int argc, char **argv)
 		SocketManager	socket_manager;
 		try
 		{
-			std::vector<ServerData> server_vec = read_config_file(argv[1]);
+			std::vector<ServerData> server_vec;
+			if (argc == 1)
+				server_vec = read_config_file("config_files/default.conf");
+			else
+				server_vec = read_config_file(argv[1]);
 			for (size_t s = 0; s < server_vec.size(); s++)
 			{
 				ServerData const & server = server_vec[s];

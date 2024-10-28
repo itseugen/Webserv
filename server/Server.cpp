@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include <string>
 
 /* -------------------------------------------------------------------------- */
 /*                           Orthodox Canonical Form                          */
@@ -145,10 +146,29 @@ void	Server::load_mime_types(const std::string& file_path)
 	file.close();
 }
 
+// std::string clean_file_path(const std::string& url)
+// {
+// 	size_t query_pos = url.find('?');
+// 	if (query_pos != std::string::npos)
+// 	{
+// 		return url.substr(0, query_pos); // Return the part before the '?'
+// 	}
+// 	return url; // Return the original URL if no '?' is found
+// }
+
 std::string	Server::process_request(const Request& req)
 {
-	int	method = req.get_method();
+	std::string url = req.get_file_path();
+	std::cout << RED("get file path returns this here: " << url) << std::endl;
 
+	// we first check if the request is for a CGI file (the .py in our case)
+	if (ends_with(clean_file_path(url), ".py"))
+	{
+		std::cout << "i entered the if .py extension block" << std::endl;
+		return handle_cgi_request(req);
+	}
+
+	int	method = req.get_method();
 	switch (method)
 	{
 		case GET:
@@ -164,12 +184,61 @@ std::string	Server::process_request(const Request& req)
 	return (send_error_message(400));
 }
 
+std::string Server::handle_cgi_request(const Request& req) 
+{
+	
+	int pipe_fds[2];
+	if (pipe(pipe_fds) == -1) {
+		return send_error_message(500); // Internal server error
+	}
+
+	(void)req;
+	pid_t pid = fork();
+	if (pid == -1) {
+		return send_error_message(500); // Fork failed
+	}
+
+	if (pid == 0) { // Child process
+		close(pipe_fds[0]); // Close reading end in the child
+		dup2(pipe_fds[1], STDOUT_FILENO); // Redirect stdout to pipe
+		close(pipe_fds[1]);
+
+		// Set up environment variables, if needed
+		// std::string script = req.get_file_path();
+		// const char* args[] = {"/usr/bin/python3", script.c_str(), nullptr};
+		// execve(args[0], args, environ); // Execute CGI script
+		// exit(1); // Exit if exec fails
+	} else { // Parent process
+		close(pipe_fds[1]); // Close writing end in the parent
+
+		// Read output from CGI script
+		// std::vector<char> buffer(BUFFER_SIZE);
+		// ssize_t bytes_read = read(pipe_fds[0], buffer.data(), buffer.size());
+		close(pipe_fds[0]);
+
+		waitpid(pid, nullptr, 0); // Wait for the child to complete
+
+		// Return CGI response
+		// return std::string(buffer.data(), bytes_read);
+		return (std::string("hello world"));
+	}
+	return send_error_message(200);//!to be deleted
+}
+
 std::string	Server::process_get(const Request& req)
 {
 	std::string	url = req.get_file_path();
 	std::string	file_path = map_to_directory(url);
 	std::string	response = "HTTP/1.1 200 OK\r\n";
 
+	// //TODO CGI ADDITION
+	// // Step 1: we check if the request is for a CGI file (the .py in our case)
+	// if (ends_with(file_path, ".py")) {
+	// 	// Handle as a CGI request
+	// 	return process_cgi(file_path, req);
+	// }
+
+	// Handles directory listing
 	if (_directory_listing_enabled == true && std::filesystem::is_directory(file_path))
 	{
 		if (file_path != map_to_directory("/" + _data_dir + "/") && file_path != map_to_directory("/" + _data_dir))
@@ -258,7 +327,6 @@ std::string	Server::process_post(const Request& req)
 	else
 		return (send_error_message(200));
 }
-
 
 std::string	Server::send_error_message(int error_code)
 {

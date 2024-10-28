@@ -22,6 +22,7 @@ class Server
 
 		void				load_mime_types(const std::string& file_path);
 		std::string			process_get(const Request& req);
+		std::string			handle_cgi_request(const Request& req);
 		std::string			process_delete(const Request& req);
 		std::string			process_post(const Request& req);
 		std::string			extract_get_request(const std::string& request);
