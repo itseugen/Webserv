@@ -9,8 +9,6 @@
 * -d30s stands for a 30s test lenght
 */
 
-void signal_handler(int signum);
-
 int main(int argc, char **argv)
 {
 	std::cout << GREEN("🚀 Launching Webserv ... 🚀") << std::endl;
@@ -23,10 +21,10 @@ int main(int argc, char **argv)
 	std::vector<ServerData> server_vec;
 	try
 	{
-		if (argc == 1)
-			server_vec = read_config_file("config_files/default.conf");
-		else
+		if (argc == 2)
 			server_vec = read_config_file(argv[1]);
+		else
+			server_vec = read_config_file("config_files/standart.conf");
 	}
 	catch(const std::exception& e)
 	{
