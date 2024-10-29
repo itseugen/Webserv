@@ -186,12 +186,12 @@ void Server::execute_script(const Request& req)
 		envp.push_back(const_cast<char*>(str.c_str()));
 	envp.push_back(nullptr);
 
-	std::string scriptpath = "/www" + clean_file_path(req.get_file_path());
+	std::string scriptpath = "www" + clean_file_path(req.get_file_path());
 	char *args[] = {
 		const_cast<char *>("/usr/bin/python3"),
-		// const_cast<char *>(scriptpath.c_str()), //if its like this, execve tries to open this file and it fails: `/www/cgi-bin/hello_world.py`
+		const_cast<char *>(scriptpath.c_str()), //if its like this, execve tries to open this file and it fails: `/www/cgi-bin/hello_world.py`
 		// but if i give the full path it can open it and then there are other problems:
-		const_cast<char *>("/Users/marykate/Documents/VS_Code_Files/projects/webserv/www/cgi-bin/hello_world.py"),
+		// const_cast<char *>("/Users/marykate/Documents/VS_Code_Files/projects/webserv/www/cgi-bin/hello_world.py"),
 		NULL
 	};
 	// std::cout << YELLOW("hello from child process!") << std::endl;
@@ -227,23 +227,50 @@ std::string Server::handle_cgi_request(const Request& req)
 		close(pipe_fds[1]); // Close writing end in the parent
 
 		// Read output from CGI script
-		std::vector<char> buffer(4 * 4096);
-		ssize_t bytes_read = read(pipe_fds[0], buffer.data(), buffer.size());
-		if (bytes_read <= 0)
-			return send_error_message(500); // Error reading CGI output
+		std::vector<char> buffer;
+		char temp_buf[4096];
+		ssize_t bytes_read;
+
+		// Read in chunks to avoid truncating longer outputs
+		while ((bytes_read = read(pipe_fds[0], temp_buf, sizeof(temp_buf))) > 0)
+			buffer.insert(buffer.end(), temp_buf, temp_buf + bytes_read);
+
 		close(pipe_fds[0]);
 
-		// waitpid(pid, nullptr, 0); // Wait for the child to complete
-		//alternatively:
 		int status;
 		waitpid(pid, &status, 0); // Wait for the child to complete
 		if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
 			return send_error_message(500); // Indicate CGI execution failed
 
-		// Return CGI response
-		return (std::string(buffer.data(), bytes_read));
-		// return (std::string("hello world"));
+		if (bytes_read < 0) // Error during read
+			return send_error_message(500);
+
+		// Convert the buffer to a string and return the CGI response
+		return std::string(buffer.begin(), buffer.end());
 	}
+
+	// else // Parent process
+	// {
+	// 	close(pipe_fds[1]); // Close writing end in the parent
+
+	// 	// Read output from CGI script
+	// 	std::vector<char> buffer(4 * 4096);
+	// 	ssize_t bytes_read = read(pipe_fds[0], buffer.data(), buffer.size());
+	// 	if (bytes_read <= 0)
+	// 		return send_error_message(500); // Error reading CGI output
+	// 	close(pipe_fds[0]);
+
+	// 	// waitpid(pid, nullptr, 0); // Wait for the child to complete
+	// 	//alternatively:
+	// 	int status;
+	// 	waitpid(pid, &status, 0); // Wait for the child to complete
+	// 	if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+	// 		return send_error_message(500); // Indicate CGI execution failed
+
+	// 	// Return CGI response
+	// 	return (std::string(buffer.data(), bytes_read));
+	// 	// return (std::string("hello world"));
+	// }
 	return send_error_message(500);//!to be deleted
 }
 
