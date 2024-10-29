@@ -1,5 +1,4 @@
 #include "Server.hpp"
-#include <string>
 
 /* -------------------------------------------------------------------------- */
 /*                           Orthodox Canonical Form                          */
@@ -14,9 +13,9 @@
  * @param data_dir the directory to POST/DELETE from (might be replaced by a redirect map in the future)
  * @param www_dir the location of the webpage files 
  * @param directory_listing_enabled true or false if the directory listing should be enabled
- * @param keepalive_timeout 
- * @param send_timeout 
- * @param max_body_size 
+ * @param keepalive_timeout Keepalive timeout in seconds, 0 to disable
+ * @param send_timeout Send timeout in seconds, 0 to disable
+ * @param max_body_size Max Body size the Server will read (the server may send bigger responses to the client), 0 to diable
  */
 Server::Server(const std::string server_name, int port, const std::string ip_address, const std::string index_file,
 		const std::string data_dir, const std::string www_dir, bool directory_listing_enabled, size_t keepalive_timeout,
@@ -25,15 +24,31 @@ Server::Server(const std::string server_name, int port, const std::string ip_add
 	_directory_listing_enabled(directory_listing_enabled), _keepalive_timeout(keepalive_timeout),
 	_send_timeout(send_timeout), _max_body_size(max_body_size)
 {
-	std::cout << "Server Default Constructor called" << std::endl;
-	load_mime_types("mime_type.csv");
+	Logger::getInstance().log(server_name, "Constructor called", 2);
 	_fd_server = socket(AF_INET, SOCK_STREAM, 0);
 	if (_fd_server == -1)
 		throw SocketCreationFailedException(_name);
 	int opt = 1;
-	// Add keepalive here, not changed inside this branch since MK has to most current standart
-	// Add send_out here
 	if (setsockopt(_fd_server, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+	{
+		close(_fd_server);
+		throw SetSocketOptionFailedException(_name);
+	}
+	if (setsockopt(_fd_server, SOL_SOCKET, SO_KEEPALIVE, &opt, sizeof(opt)) < 0)
+	{
+		close(_fd_server);
+		throw SetSocketOptionFailedException(_name);
+	}
+	int	keep_idle = _keepalive_timeout;
+	if (setsockopt(_fd_server, IPPROTO_TCP, TCP_KEEPIDLE, &keep_idle, sizeof(keep_idle)) < 0)
+	{
+		close(_fd_server);
+		throw SetSocketOptionFailedException(_name);
+	}
+	struct timeval	send_timeout_val;
+	send_timeout_val.tv_sec = _send_timeout;
+	send_timeout_val.tv_usec = 0;
+	if (setsockopt(_fd_server, SOL_SOCKET, SO_SNDTIMEO, &send_timeout_val, sizeof(send_timeout_val)) < 0)
 	{
 		close(_fd_server);
 		throw SetSocketOptionFailedException(_name);
@@ -50,7 +65,7 @@ Server::Server(const std::string server_name, int port, const std::string ip_add
 		throw SetSocketOptionFailedException(_name);
 	}
 	_address.sin_port = htons(port);
-	// replace forbidden function, not done now since MKs branch has it
+	// replace forbidden function
 	if (inet_pton(AF_INET, ip_address.c_str(), &_address.sin_addr) != 1)
 	{
 		close(_fd_server);
@@ -66,15 +81,13 @@ Server::Server(const std::string server_name, int port, const std::string ip_add
 		close(_fd_server);
 		throw ListenFailedException(_name);
 	}
+	Logger::getInstance().log(server_name, "Server is now listening on " + std::to_string(port), 2);
 
-	int temp = _send_timeout + _keepalive_timeout + _directory_listing_enabled + _max_body_size;
-	std::cout << temp << std::endl;
-	std::cout << "Server is now listening on port " << port << std::endl;
 }
 
 Server::~Server()
 {
-	std::cout << "Server Default Destructor called" << std::endl;
+	Logger::getInstance().log(_name, "Destructor called", 2);
 	close(_fd_server);
 }
 
@@ -106,19 +119,6 @@ std::string	Server::map_to_directory(const std::string& file_path)
 		return (_www_dir + file_path);
 }
 
-std::string	Server::get_mime_type(const std::string& file_path)
-{
-	std::string	file_extension = file_path.substr(file_path.find_last_of('.'));
-	try
-	{
-		return (_mime_types.at(file_extension));
-	}
-	catch (const std::out_of_range& e)
-	{
-		return ("unknown/unknown");
-	}
-}
-
 std::string	Server::read_file(const std::string& file_path)
 {
 	std::ifstream		file(file_path);
@@ -128,26 +128,11 @@ std::string	Server::read_file(const std::string& file_path)
 	return (buffer.str());
 }
 
-void	Server::load_mime_types(const std::string& file_path)
-{
-	std::ifstream file(file_path);
-	if (!file.is_open())
-		throw OpenFailedException(_name, file_path);
-	std::string	line;
-	while(std::getline(file, line))
-	{
-		std::istringstream	ss(line);
-		std::string			extension;
-		std::string			mime_type;
-
-		if (std::getline(ss, extension, '\t') && std::getline(ss, mime_type))
-			_mime_types[extension] = mime_type;
-	}
-	file.close();
-}
-
 std::string	Server::process_request(const Request& req)
 {
+	_CLF_line = req.get_CLF_line();
+
+	//! the cgi addition:
 	std::string url = req.get_file_path();
 	std::cout << RED("get file path returns this here: " << url) << std::endl;
 
@@ -157,7 +142,7 @@ std::string	Server::process_request(const Request& req)
 	{
 		std::cout << "i entered the if .py extension block" << std::endl;
 		return handle_cgi_request(req);
-	}
+	}//!cgi part end - to be moved to separate class
 
 	int	method = req.get_method();
 	switch (method)
@@ -268,14 +253,6 @@ std::string	Server::process_get(const Request& req)
 	std::string	file_path = map_to_directory(url);
 	std::string	response = "HTTP/1.1 200 OK\r\n";
 
-	// //TODO CGI ADDITION
-	// // Step 1: we check if the request is for a CGI file (the .py in our case)
-	// if (ends_with(file_path, ".py")) {
-	// 	// Handle as a CGI request
-	// 	return process_cgi(file_path, req);
-	// }
-
-	// Handles directory listing
 	if (_directory_listing_enabled == true && std::filesystem::is_directory(file_path))
 	{
 		if (file_path != map_to_directory("/" + _data_dir + "/") && file_path != map_to_directory("/" + _data_dir))
@@ -291,11 +268,11 @@ std::string	Server::process_get(const Request& req)
 			response_body += "    <li><a href=\"" + _data_dir + "/" + entry.path().filename().string() + "\">" + entry.path().filename().string() + "</a></li>\n";
 		}
 		response_body += "</ul>\n<hr>\n</body>\n</html>\n";
-		response += "Content-Length: " + std::to_string(response_body.size()) + "\r\n";
+		std::string	con_len_str = std::to_string(response_body.size());
+		response += "Content-Length: " + con_len_str + "\r\n";
 		response += "\r\n";
 		response += response_body;
-		// if (send(req.get_fd(), response.c_str(), response.size(), 0) == -1)
-		// 		throw SendFailedException(_name, req.get_fd());
+		_CLF_line += " " + std::to_string(200) + " " + con_len_str;
 		return (response);
 	}
 	else if (_directory_listing_enabled == false && std::filesystem::is_directory(file_path))
@@ -305,13 +282,13 @@ std::string	Server::process_get(const Request& req)
 	else if (std::filesystem::exists(file_path))
 	{
 		std::string	file_content = read_file(file_path);
-		std::string	mime_type = get_mime_type(file_path);
+		std::string	mime_type = MimeTypes::getInstance().get_mime_type(file_path);
 		response += "Content-Type: " + mime_type + "\r\n";
-		response += "Content-Length: " + std::to_string(file_content.size()) + "\r\n";
+		std::string	con_len_str = std::to_string(file_content.size());
+		response += "Content-Length: " + con_len_str + "\r\n";
 		response += "\r\n";
 		response += file_content;
-		// if (send(req.get_fd(), response.c_str(), response.size(), 0) == -1)
-		// 		throw SendFailedException(_name, req.get_fd());
+		_CLF_line += " " + std::to_string(200) + " " + con_len_str;
 		return (response);
 	}
 	else
@@ -326,9 +303,6 @@ std::string	Server::process_delete(const Request& req)
 	{
 		if (std::remove(file_path.c_str()) == 0)
 		{
-			// std::string	response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
-			// if (send(req.get_fd(), response.c_str(), response.size(), 0) == -1)
-			// 	throw SendFailedException(_name, req.get_fd());
 			return (send_error_message(200));
 		}
 		else
@@ -372,28 +346,27 @@ std::string	Server::send_error_message(int error_code)
 	if (std::filesystem::exists(file_path))
 	{
 		std::string	file_content = read_file(file_path);
-		std::string	mime_type = get_mime_type(file_path);
+		std::string	mime_type = MimeTypes::getInstance().get_mime_type(file_path);
 		std::string	response = "HTTP/1.1 " + std::to_string(error_code) + " Error\r\n";
 		response += "Content-Type: " + mime_type + "\r\n";
-		response += "Content-Length: " + std::to_string(file_content.size()) + "\r\n";
+		std::string	con_len_str = std::to_string(file_content.size());
+		response += "Content-Length: " + con_len_str + "\r\n";
 		response += "\r\n";
 		response += file_content;
-		// if (send(req.get_fd(), response.c_str(), response.size(), 0) == -1)
-		// 		throw SendFailedException(_name, req.get_fd());
+		_CLF_line += " " + std::to_string(error_code) + " " + con_len_str;
 		return (response);
 	}
 	else
 	{
 		std::string response = "HTTP/1.1 404 Not Found\r\n";
 		response += "Content-Type: text/html\r\n";
-		response += "Content-Length: " + std::to_string(strlen("404 File Not Found")) + "\r\n";
+		std::string	con_len_str = std::to_string(strlen("404 File Not Found"));
+		response += "Content-Length: " + con_len_str + "\r\n";
 		response += "\r\n"; // End of headers
 		response += "404 File Not Found"; // Body
-		// if (send(req.get_fd(), response.c_str(), response.size(), 0) == -1)
-		// 	throw SendFailedException(_name, req.get_fd());
+		_CLF_line += " " + std::to_string(error_code) + " " + con_len_str;
 		return (response);
 	}
-	// return (0);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -418,4 +391,9 @@ const std::string	Server::getName(void) const
 size_t	Server::getMaxBodySize(void) const
 {
 	return (_max_body_size);
+}
+
+void	Server::log_CLF_line(void)
+{
+	Logger::getInstance().log(_name, _CLF_line, 1);
 }

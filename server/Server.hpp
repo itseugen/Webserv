@@ -18,9 +18,9 @@ class Server
 		size_t				_keepalive_timeout;
 		size_t				_send_timeout;
 		size_t				_max_body_size;
+		std::string			_CLF_line;
 		std::unordered_map<std::string, std::string> _mime_types;
 
-		void				load_mime_types(const std::string& file_path);
 		std::string			process_get(const Request& req);
 		std::string			handle_cgi_request(const Request& req);
 		void 				execute_script(const Request& req);
@@ -28,7 +28,6 @@ class Server
 		std::string			process_post(const Request& req);
 		std::string			extract_get_request(const std::string& request);
 		std::string			map_to_directory(const std::string& file_path);
-		std::string			get_mime_type(const std::string& file_path);
 		std::string			read_file(const std::string& file_path);
 	public:
 		Server(const std::string server_name, int port, const std::string ip_address, const std::string index_file,
@@ -42,6 +41,7 @@ class Server
 		size_t				getMaxBodySize(void) const;
 		std::string			process_request(const Request& req);
 		std::string			send_error_message(int error_code);
+		void				log_CLF_line(void);
 };
 
 #endif /*SERVER_HPP*/

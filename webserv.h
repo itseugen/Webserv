@@ -11,6 +11,7 @@
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
+# include <netinet/tcp.h>
 # include <unistd.h>
 # include <fcntl.h>
 # include <climits>
@@ -25,12 +26,15 @@
 # include <cstdio>
 # include <filesystem>
 # include <fcntl.h>
+# include <chrono>
 
 # include "exceptions/Exceptions.hpp"
 // # include "SocketsController/SocketsControl.hpp"
 // # include "SocketsController/structs.hpp"
 # include "utils/utils.h"
-#include "parser/parsing/parse_config_file.hpp"
+# include "parser/parsing/parse_config_file.hpp"
+# include "log/Logger.hpp"
+# include "server/MimeTypes.hpp"
 
 // some output formatting macros:
 # define BOLD(text) "\033[1m" << text << "\033[0m"

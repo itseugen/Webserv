@@ -6,7 +6,6 @@
 
 Request::Request(size_t fd)
 {
-	std::cout << "Request Constructed" << std::endl;
 	_fd = fd;
 	_method = -1;
 	_content_len = 0;
@@ -18,7 +17,6 @@ Request::Request(size_t fd)
 
 Request::Request()
 {
-	std::cout << "Request Constructed" << std::endl;
 	_method = -1;
 	_content_len = 0;
 	_port = -1;
@@ -37,6 +35,16 @@ Request::Request(const Request& copy)
 	// std::cout << "Request Copy Constructor called" << std::endl;
 	if (this != &copy)
 	{
+		this->_fd = copy._fd;
+		this->_client_ip = copy._client_ip;
+		// this->_method = copy._method;
+		// this->_content_len = copy._content_len;
+		// this->_port = copy._port;
+		// this->_body_bytes_read = copy._body_bytes_read;
+		// this->_header_parsed = copy._header_parsed;
+		// this->_finished_reading = copy._finished_reading;
+		// this->_file_path = copy._file_path;
+		// this->_host = copy._host;
 	}
 }
 
@@ -45,7 +53,9 @@ Request&	Request::operator=(const Request &copy)
 	// std::cout << "Request Copy Assignment called" << std::endl;
 	if (this != &copy)
 	{
-	}
+		this->_fd = copy._fd;
+		this->_client_ip = copy._client_ip;
+}
 	return (*this);
 }
 
@@ -55,22 +65,14 @@ Request&	Request::operator=(const Request &copy)
 
 int		Request::read_chunk(std::vector<char> buffer, int bytes_read)
 {
-	//! Make the main loop check if the content_len variable is bigger than the allowed one for that server, in that case we would send an error
-	//! basically if this function returns something that isnt 0 or 1 send an error to the client
 	if (_finished_reading == true)
 		return (0);
 	if (bytes_read < 0)
 	{
-		// std::cerr << "Error reading from fd " << fds[i].fd << std::endl;
-		// close(fds[i].fd);
-		// fds[i].fd = -1;
 		return (-1);
 		}
 	if (bytes_read == 0)
 	{
-		// std::cout << "Client on fd " << fds[i].fd << " disconnected" << std::endl;
-		// close(fds[i].fd);
-		// fds[i].fd = -1;
 		return (-2);
 	}
 	_accumulated_request.insert(_accumulated_request.end(), buffer.begin(), buffer.begin() + bytes_read);
@@ -112,7 +114,7 @@ int		Request::read_chunk(std::vector<char> buffer, int bytes_read)
 	{
 		if (_body_bytes_read >= _content_len)
 		{
-			std::cout << "HEADER:\n" << _header << std::endl;
+			// std::cout << "HEADER:\n" << _header << std::endl;
 			if (fill_in_request() == 1)
 				return (-1);
 			return (0);
@@ -120,7 +122,7 @@ int		Request::read_chunk(std::vector<char> buffer, int bytes_read)
 	}
 	if (_header_parsed && _content_len == 0)
 	{
-		std::cout << "HEADER:\n" << _header << std::endl;
+		// std::cout << "HEADER:\n" << _header << std::endl;
 		if (fill_in_request() == 1)
 			return (-1);
 		_finished_reading = true;
@@ -131,6 +133,29 @@ int		Request::read_chunk(std::vector<char> buffer, int bytes_read)
 
 int	Request::fill_in_request(void)
 {
+	std::time_t	now = std::time(NULL);
+	std::tm local_tm = *std::localtime(&now);
+	char	buffer[100];
+	std::string	format = "[%d/%b/%Y:%H:%M:%S %z]";
+	if (std::strftime(buffer, sizeof(buffer), format.c_str(), &local_tm))
+	{
+		_request_received_time = std::string(buffer);
+	}
+	else
+	{
+		_request_received_time = "Error-Formating-Time";
+	}
+	std::string::size_type pos = _header.find('\n');
+	if (pos != std::string::npos) 
+	{
+		_request_line = _header.substr(0, pos -1);
+	}
+	else
+	{
+		_request_line = "Error-Finding-Request_Line";
+	}
+	_CLF_line = _client_ip + "\t" + std::to_string(_fd) + "\t- " + _request_received_time + "\t\"" + _request_line + "\"";
+
 	std::string::size_type	method;
 	if (_header.compare(0, 3, "GET") == 0)
 	{
@@ -186,9 +211,9 @@ int	Request::process_post(void)
 	}
 	else
 	{
-		//! Replace the unknown filename with something like unknow.fileending or random.fileending, getting the ending from the mimetype map that is currently in the server class
+		std::string	file_extention = MimeTypes::getInstance().get_file_extension(con_type);
 		std::string body_str(_accumulated_request.begin(), _accumulated_request.end());
-		_post_files["unknown"] = body_str;
+		_post_files["unknown" + file_extention] = body_str;
 	}
 	return (0);
 }
@@ -292,4 +317,61 @@ bool	Request::get_finished_reading(void) const
 std::string	Request::get_host(void) const
 {
 	return (_host);
+}
+
+std::string	Request::get_client_ip(void) const
+{
+	return (_client_ip);
+}
+
+std::string	Request::get_request_received_time(void) const
+{
+	return (_request_received_time);
+}
+
+std::string	Request::get_request_line(void) const
+{
+	return (_request_line);
+}
+
+void	Request::set_fd(size_t fd)
+{
+	_fd = fd;
+}
+
+void	Request::set_client_ip(uint32_t ip_binary)
+{
+	std::string	ip_str;
+
+	for (int i = 0; i < 4; i++)
+	{
+		if (i != 0)
+			ip_str += ".";
+		ip_str += std::to_string((ip_binary >> (8 * i)) & 0xFF);
+	}
+	_client_ip = ip_str;
+}
+
+void	Request::reset()
+{
+	_method = -1;
+	_file_path.clear();
+	_content_len = 0;
+	_host.clear();
+	_port = -1;
+	_content_type.clear();
+	_header.clear();
+	_accumulated_request.clear();
+	_body_bytes_read = 0;
+	_header_parsed = false;
+	_finished_reading = false;
+	_request_received_time.clear();
+	_request_line.clear();
+	_post_files.clear();
+	_CLF_line.clear();
+}
+
+std::string	Request::get_CLF_line(void) const
+{
+	return (_CLF_line);
 }
