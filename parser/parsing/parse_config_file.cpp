@@ -112,7 +112,7 @@ std::vector<ServerData>	read_config_file(std::string file)
 			server.server_name = server_ptr -> server_name.get<std::string>("default");
 			server.port_to_listen = server_ptr -> listen.get<short>(80);
 			server.root = server_ptr -> root.get<std::string>("/");
-			server.index_file = server_ptr -> index.get<std::string>("test");
+			server.index_file = server_ptr -> index.get<std::string>("index.html");
 
 			server.keepalive_timeout = server_ptr -> keepalive_timeout.get<size_t>(0);
 			server.max_request_size = server_ptr -> max_body_size.get<size_t>(0);

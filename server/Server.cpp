@@ -19,10 +19,10 @@
  */
 Server::Server(const std::string server_name, int port, const std::string ip_address, const std::string index_file,
 		const std::string data_dir, const std::string www_dir, bool directory_listing_enabled, size_t keepalive_timeout,
-		size_t send_timeout, size_t max_body_size)
+		size_t send_timeout, size_t max_body_size, std::vector<LocationData> locations)
 	: _name(server_name), _index_file(index_file), _data_dir(data_dir), _www_dir(www_dir),
 	_directory_listing_enabled(directory_listing_enabled), _keepalive_timeout(keepalive_timeout),
-	_send_timeout(send_timeout), _max_body_size(max_body_size)
+	_send_timeout(send_timeout), _max_body_size(max_body_size), _locations(locations)
 {
 	std::cout << "Server Default Constructor called" << std::endl;
 	load_mime_types("mime_type.csv");
@@ -94,15 +94,103 @@ std::string	Server::extract_get_request(const std::string& request)
 	return (request.substr(get, http - get));
 }
 
-/// @brief Takes the string from extract request and maps it to the directoy (currently www)
-/// @param file_path the return value from extract_request
-/// @return The path to the requested resource in our directory
-std::string	Server::map_to_directory(const std::string& file_path)
+
+/// @brief Compares 2 strings until the first differance
+/// @param a string A
+/// @param b string B
+/// @return The Length where both strings matched
+size_t	Server::find_matching_len(const std::string & a, const std::string & b)
 {
-	if (file_path == "/")
-		return (_www_dir + "/" + _index_file);
+	size_t l = std::min(a.size(), b.size());
+	for (size_t i = 0; i < l; i++)
+	{
+		if (a[i] != b[i])
+			return (i);
+	}
+	return (l);
+}
+
+/// @brief checks if request is allowed in a location
+/// @param method method to used
+/// @param location location where method should to be is used
+/// @return if method can be used
+bool	Server::is_method_allowed_at_location(const std::string & method, const LocationData & location)
+{
+	for (size_t i = 0; i < location.allowed_methods.size(); i++)
+	{
+		if (location.allowed_methods[i] == method)
+			return (true);
+	}
+	return (false);
+}
+
+/// @brief Finds the location that matched the longest path
+/// @param file_path path to redirect
+/// @param best_len length that matched
+/// @param best_idx index of location that matched
+void Server::find_longest_directory_match(const std::string & file_path, size_t & best_len, size_t & best_idx)
+{
+	size_t	len;
+	best_len = 0;
+	best_idx = 0;
+	for (size_t i = 0; i < _locations.size(); i++)
+	{
+		len = find_matching_len(_locations[i].path, file_path);
+		if (len > best_len)
+		{
+			best_len = len;
+			best_idx = i;
+		}
+	}
+}
+
+/// @brief redirects file_path based on the server locations
+/// @param file_path path to redirect
+/// @param method method used with this path
+/// @param is_method_allowed indicates whether the method can be used at the redirection location
+/// @return the redirected path
+std::string	Server::redirect(const std::string& file_path, const std::string& method, bool & is_method_allowed)
+{
+	size_t	best_len;
+	size_t	best_idx;
+//	std::cout << "\n";
+//	std::cout << "path '" << file_path << "'\n";
+	find_longest_directory_match(file_path, best_len, best_idx);
+
+	const LocationData & loc = _locations[best_idx];
+//	std::cout << "path matched : '" << loc.path << "'\n";
+
+	std::string non_redirected_path = file_path.substr(best_len);
+
+	std::string redirected_path;
+	if (loc.redirection)
+	{
+//		std::cout << "redirected   : '" << loc.path_to_redirect << "'\n";
+		redirected_path = loc.path_to_redirect;
+	}
 	else
-		return (_www_dir + file_path);
+	{
+//		std::cout << "rooted       : '" << _www_dir << "'\n";
+		redirected_path = _www_dir;
+	}
+
+	if (non_redirected_path.size() != 0 && non_redirected_path[0] != '/' && redirected_path[redirected_path.size() - 1] != '/')
+		redirected_path += "/";
+	else if (non_redirected_path.size() != 0 && non_redirected_path[0] == '/' && redirected_path[redirected_path.size() - 1] == '/')
+		redirected_path.pop_back();
+
+//	std::cout << "non redirected : '" << non_redirected_path << "'\n";
+//	std::cout << "redirected : '" << redirected_path << "'\n";
+
+	if (non_redirected_path.size() != 0 && non_redirected_path[non_redirected_path.size() - 1] == '/')
+		non_redirected_path += _index_file;
+
+	is_method_allowed = is_method_allowed_at_location(method, loc);
+//	if (!is_method_allowed)
+//		std::cout << "Method '" << method << "' is not allowed at location '" << redirected_path << "'\n";
+
+	return (redirected_path + non_redirected_path);
+
 }
 
 std::string	Server::get_mime_type(const std::string& file_path)
@@ -167,12 +255,18 @@ std::string	Server::process_request(const Request& req)
 std::string	Server::process_get(const Request& req)
 {
 	std::string	url = req.get_file_path();
-	std::string	file_path = map_to_directory(url);
+	bool is_method_allowed;
+	std::string	file_path = redirect(url, "GET", is_method_allowed);
+	if (!is_method_allowed)
+	{
+		//	METHOD CANNOT BE USED IN THE REDIRECTED DIRECTORY
+		return (send_error_message(405));
+	}
 	std::string	response = "HTTP/1.1 200 OK\r\n";
 
 	if (_directory_listing_enabled == true && std::filesystem::is_directory(file_path))
 	{
-		if (file_path != map_to_directory("/" + _data_dir + "/") && file_path != map_to_directory("/" + _data_dir))
+		if (file_path != redirect("/" + _data_dir + "/", "", is_method_allowed) && file_path != redirect("/" + _data_dir, "", is_method_allowed))
 		{
 			return (send_error_message(403));
 		}
@@ -215,7 +309,14 @@ std::string	Server::process_get(const Request& req)
 std::string	Server::process_delete(const Request& req)
 {
 	std::string	url = req.get_file_path();
-	std::string	file_path = _www_dir + "/" + _data_dir + "/" + url;
+	//std::string	file_path = _www_dir + "/" + _data_dir + "/" + url;
+	bool is_method_allowed;
+	std::string	file_path = redirect(url, "DELETE", is_method_allowed);
+	if (!is_method_allowed)
+	{
+		//	METHOD CANNOT BE USED IN THE REDIRECTED DIRECTORY
+		return (send_error_message(405));
+	}
 	if (std::filesystem::exists(file_path))
 	{
 		if (std::remove(file_path.c_str()) == 0)
@@ -239,7 +340,14 @@ std::string	Server::process_post(const Request& req)
 	{
 		const std::string&	file_name = entry.first;
 		const std::string&	content = entry.second;
-		std::string			full_path = _www_dir + "/" + _data_dir + "/" +file_name;
+		//std::string			full_path = _www_dir + "/" + _data_dir + "/" + file_name;
+		bool is_method_allowed;
+		std::string	full_path = redirect(file_name, "POST", is_method_allowed);
+		if (!is_method_allowed)
+		{
+			//	METHOD CANNOT BE USED IN THE REDIRECTED DIRECTORY
+			return (send_error_message(405));
+		}
 
 		std::ofstream out_file(full_path, std::ios::binary);
 		if (!out_file)

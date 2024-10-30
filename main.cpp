@@ -36,7 +36,23 @@ int main(int argc, char **argv)
 			{
 				ServerData const & server = server_vec[s];
 				socket_manager.add_server(server.port_to_listen, std::make_unique<Server>(server.server_name, server.port_to_listen, "0.0.0.0", server.index_file,
-				"usrimg", server.root, server.directory_listing, server.keepalive_timeout, server.send_timeout, server.max_request_size));
+				"usrimg", server.root, server.directory_listing, server.keepalive_timeout, server.send_timeout, server.max_request_size, server.locations));
+
+				//	redirect testing, requires redirect() to be public
+				//Server serv = Server(server.server_name, server.port_to_listen, "0.0.0.0", server.index_file,
+				//"usrimg", server.root, server.directory_listing, server.keepalive_timeout, server.send_timeout, server.max_request_size, server.locations);
+				//std::string strI, strO;
+				//bool is_method_allowed;
+				//strI = "/"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
+				//strI = "/test"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
+				//strI = "/test/"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
+				//strI = "/dir/test"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
+				//strI = "/42heilbronn"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
+				//strI = "/42heilbronn/test"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
+				//strI = "/google"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
+				//strI = "/google/test"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
+				//strI = "/uploads"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
+				//strI = "/uploads/test"; strO = serv.redirect(strI, "GET", is_method_allowed); std::cout << "'" << strI << "' mapped to '" << strO << "' " << is_method_allowed << "\n";
 			}
 		}
 		catch(const std::exception& e)
