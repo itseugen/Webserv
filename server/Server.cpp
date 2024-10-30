@@ -144,7 +144,7 @@ std::string	Server::process_request(const Request& req)
 		std::string output = handle_cgi_request(req);
 		std::string response = "HTTP/1.1 200 OK\r\n";
 		response += "Content-Type: text/html\r\n";
-		response += "Content-Length: 380\r\n\n";
+		// response += "Content-Length: 380\r\n\n";
 		response += output;
 		return response;
 	}//!cgi part end - to be moved to separate class
