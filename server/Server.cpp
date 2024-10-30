@@ -169,11 +169,26 @@ PATH_INFO: The full path as expected by the CGI.
 */
 void Server::execute_script(const Request& req)
 {
+	char scriptpath[1024] = {0};
+	std::string full_path = _www_dir + req.get_file_path();
+	std::string main_part;
+	size_t qmark_pos = full_path.find("?");
+	if (qmark_pos != std::string::npos)
+	{
+		std::strcpy(scriptpath, full_path.substr(0, qmark_pos).c_str());
+		main_part = full_path.substr(qmark_pos + 1);
+	} 
+	else
+		std::strcpy(scriptpath, full_path.c_str());
+	// if (req.get_method_in_string() == "POST" && main_part.empty())
+	// 	main_part = ... it should be the main body that has the input of the user
+
 	std::vector<std::string> env_strings = 
 	{
 		"QUERY_STRING=" + get_query_string(req.get_file_path()),
 		"REQUEST_METHOD=" + req.get_method_in_string(),
 		"CONTENT_LENGTH=" + std::to_string(req.get_content_len()),
+		"CONTENT_TYPE=text/html",
 		"GATEWAY_INTERFACE=CGI/1.1",
 		"SCRIPT_NAME=" + clean_file_path(req.get_file_path()),
 		"SERVER_NAME=" + this->_name,
@@ -181,23 +196,26 @@ void Server::execute_script(const Request& req)
 		"SERVER_PROTOCOL=HTTP/1.1"
 	};
 
-	std::vector<char*> envp;
+	// std::vector<char*> envp;
+	std::vector<const char*> envp;
 	for (auto& str : env_strings)
-		envp.push_back(const_cast<char*>(str.c_str()));
-	envp.push_back(nullptr);
+		envp.push_back(str.c_str());
+	envp.push_back(NULL);
 
-	std::string scriptpath = "www" + clean_file_path(req.get_file_path());
-	char *args[] = {
-		const_cast<char *>("/usr/bin/python3"),
-		const_cast<char *>(scriptpath.c_str()), //if its like this, execve tries to open this file and it fails: `/www/cgi-bin/hello_world.py`
-		// but if i give the full path it can open it and then there are other problems:
-		// const_cast<char *>("/Users/marykate/Documents/VS_Code_Files/projects/webserv/www/cgi-bin/hello_world.py"),
-		NULL
-	};
-	// std::cout << YELLOW("hello from child process!") << std::endl;
-	execve(args[0], args, envp.data());
+	const char* argv[] = {"/usr/bin/python3", scriptpath, NULL};
+	execve(argv[0], const_cast<char* const*>(argv), const_cast<char* const*>(envp.data()));
 	exit(1);
-	// std::cout << "execve() failed - " << strerror(errno) << std::endl;//it goes to the pipe end, will not be visible either way
+	
+	// char *args[] = {
+	// 	const_cast<char *>("/usr/bin/python3"),
+	// 	const_cast<char *>(scriptpath.c_str()), //if its like this, execve tries to open this file and it fails: `/www/cgi-bin/hello_world.py`
+	// 	// but if i give the full path it can open it and then there are other problems:
+	// 	// const_cast<char *>("/Users/marykate/Documents/VS_Code_Files/projects/webserv/www/cgi-bin/hello_world.py"),
+	// 	NULL
+	// };
+	// // std::cout << YELLOW("hello from child process!") << std::endl;
+	// execve(args[0], args, envp.data());
+	// exit(1);
 }
 
 std::string Server::handle_cgi_request(const Request& req) 
