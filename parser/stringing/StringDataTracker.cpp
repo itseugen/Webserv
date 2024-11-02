@@ -2,7 +2,7 @@
 
 StringDataTracker::StringDataTracker()
 {
-
+	anyError = false;
 }
 StringDataTracker::StringDataTracker(std::string file)
 {
@@ -11,6 +11,7 @@ StringDataTracker::StringDataTracker(std::string file)
 	newLines  = 1;
 	isSingleQuote = false;
 	isDoubleQuote = false;
+	anyError = false;
 }
 StringDataTracker::~StringDataTracker()
 {
@@ -110,7 +111,10 @@ void	StringDataTracker::report_start(char report)
 {
 	char	type = report & 0b11;
 	if (type == REPORT_ERROR)
+	{
 		std::cout << "error: ";
+		anyError = true;
+	}
 	else if (type == REPORT_WARNING)
 		std::cout << "warning: ";
 	else if (type == REPORT_INFO)
@@ -190,5 +194,11 @@ void	StringDataTracker::report_extra_quotes(char report)
 	std::cout
 		//<< "an argument appears to be a concatenation of quoted regions, no quotes will be removed for this argument";
 		<< "Some weird quote thing appear to be happening here, no quotes removed";
+	report_end(report);
+}
+void	StringDataTracker::report_invalid_value(char report, std::string name, int line, std::string val)
+{
+	report_start(report);
+		std::cout << "Member '" << name << "' set at line:" << line <<" had invalid value '" << val << "'";
 	report_end(report);
 }

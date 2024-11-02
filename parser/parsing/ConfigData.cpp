@@ -4,7 +4,9 @@ extern StringDataTracker	tracker;
 
 
 
-ConfigData::MemberData::MemberData(const std::string name) :
+ConfigData::MemberData::MemberData(std::string pName, int pLine, std::string name) :
+	parentName(pName),
+	parentLine(pLine),
 	name(name)
 {
 	isSet = false;
@@ -30,19 +32,109 @@ void	ConfigData::MemberData::set(int argc, std::string args[], int line, std::st
 	for (int i = 0; i < argc; i++)
 		data -> arr[i] = args[i];
 }
-bool	ConfigData::MemberData::get(bool def, size_t idx) const
+std::string	ConfigData::MemberData::get_string(std::string def) const
 {
 	if (!isSet)
+	{
+		tracker.report_default_value(REPORT_WARNING, name, parentName, parentLine, def);
 		return (def);
+	}
 
-	if (idx >= data -> num)
+	return (data -> arr[0]);
+}
+size_t	ConfigData::MemberData::get_size_t(size_t def) const
+{
+	if (!isSet)
+	{
+		tracker.report_default_value(REPORT_WARNING, name, parentName, parentLine, def);
 		return (def);
+	}
 
-	if (data -> arr[idx] == "true")
+	try
+	{
+		if (StringHelp::only_digits(data -> arr[0]))
+		{
+			size_t temp;
+			std::stringstream ss;
+			ss << (data -> arr[0]);
+			ss >> temp;
+			if (!ss.fail())
+				return (temp);
+		}
+	}
+	catch(const std::exception& e)
+	{
+
+	}
+
+	tracker.report_invalid_value(REPORT_ERROR, name, setAtLine, data -> arr[0]);
+	return (def);
+}
+unsigned short	ConfigData::MemberData::get_ushort(unsigned short def) const
+{
+	if (!isSet)
+	{
+		tracker.report_default_value(REPORT_WARNING, name, parentName, parentLine, def);
+		return (def);
+	}
+
+	try
+	{
+		if (StringHelp::only_digits(data -> arr[0]))
+		{
+			unsigned short temp;
+			std::stringstream ss;
+			ss << (data -> arr[0]);
+			ss >> temp;
+			if (!ss.fail())
+				return (temp);
+		}
+	}
+	catch(const std::exception& e)
+	{
+
+	}
+
+	tracker.report_invalid_value(REPORT_ERROR, name, setAtLine, data -> arr[0]);
+	return (def);
+}
+bool	ConfigData::MemberData::get_bool(bool def) const
+{
+	if (!isSet)
+	{
+		tracker.report_default_value(REPORT_WARNING, name, parentName, parentLine, def);
+		return (def);
+	}
+
+	if (data -> arr[0] == "true")
 		return (true);
+	if (data -> arr[0] == "false")
+		return (false);
+
+	tracker.report_invalid_value(REPORT_ERROR, name, setAtLine, data -> arr[0]);
 
 	return (def);
 }
+std::string ConfigData::MemberData::try_get_string(std::string def, bool & got) const
+{
+	got = false;
+
+	if (!isSet)
+		return (def);
+
+	return (data -> arr[0]);
+}
+void ConfigData::MemberData::get_string_vec(std::vector<std::string> & vec) const
+{
+	if (!isSet)
+		return;
+
+	for (size_t i = 0; i < data -> num; i++)
+	{
+		vec.push_back(data -> arr[i]);
+	}
+}
+
 void	ConfigData::MemberData::print(std::string tab)
 {
 	std::cout << tab << name << " { ";
@@ -75,11 +167,11 @@ void	ConfigData::printFuncArgs(std::string func, int argc, std::string args[])
 
 
 
-const std::string ConfigData::ServerLocationData::className = "      ServerLocationData";
-ConfigData::ServerLocationData::ServerLocationData(std::string path) :
+const std::string ConfigData::ServerLocationData::className = "ServerLocationData";
+ConfigData::ServerLocationData::ServerLocationData(int line, std::string path) :
 	path(path),
-	allowed_methods("allowed_methods"),
-	redirection("redirection")
+	allowed_methods(className, line, "allowed_methods"),
+	redirection(className, line, "redirection")
 {
 
 }
@@ -109,16 +201,16 @@ void	ConfigData::ServerLocationData::print()
 
 
 
-const std::string ConfigData::ServerData::className = "    ServerData";
-ConfigData::ServerData::ServerData() :
-	server_name("server_name"),
-	listen("listen"),
-	root("root"),
-	index("index"),
-	keepalive_timeout("keepalive_timeout"),
-	send_timeout("send_timeout"),
-	max_body_size("max_body_size"),
-	directory_listing("directory_listing")
+const std::string ConfigData::ServerData::className = "ServerData";
+ConfigData::ServerData::ServerData(int line) :
+	server_name(className, line, "server_name"),
+	listen(className, line, "listen"),
+	root(className, line, "root"),
+	index(className, line, "index"),
+	keepalive_timeout(className, line, "keepalive_timeout"),
+	send_timeout(className, line, "send_timeout"),
+	max_body_size(className, line, "max_body_size"),
+	directory_listing(className, line, "directory_listing")
 {
 
 }
@@ -173,7 +265,7 @@ void	*ConfigData::ServerData::newLocation(void *ptr, int line, int argc, std::st
 	printFuncArgs(className + "." + __FUNCTION__, argc, args);
 	(void)line;
 
-	ServerLocationData * location = new ServerLocationData(args[0]);
+	ServerLocationData * location = new ServerLocationData(line, args[0]);
 	p -> location.push_back(location);
 	return location;
 }
@@ -201,9 +293,9 @@ void	ConfigData::ServerData::print()
 
 
 
-const std::string ConfigData::HttpData::className = "  HttpData";
-ConfigData::HttpData::HttpData() :
-	server_timeout_time("server_timeout_time")
+const std::string ConfigData::HttpData::className = "HttpData";
+ConfigData::HttpData::HttpData(int line) :
+	server_timeout_time(className, line, "server_timeout_time")
 {
 
 }
@@ -218,7 +310,7 @@ void	*ConfigData::HttpData::newServer(void *ptr, int line, int argc, std::string
 	printFuncArgs(className + "." + __FUNCTION__, argc, args);
 	(void)line;
 
-	ServerData * server = new ServerData();
+	ServerData * server = new ServerData(line);
 	p -> server.push_back(server);
 	return server;
 }
@@ -260,7 +352,7 @@ void	*ConfigData::MainData::newHttp(void *ptr, int line, int argc, std::string a
 	printFuncArgs(className + "." + __FUNCTION__, argc, args);
 	(void)line;
 
-	HttpData * http = new HttpData();
+	HttpData * http = new HttpData(line);
 	p -> http.push_back(http);
 	return http;
 }

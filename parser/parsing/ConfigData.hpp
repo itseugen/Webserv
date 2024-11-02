@@ -5,6 +5,8 @@
 #include "../stringing/StringArr.hpp"
 #include "../stringing/StringDataTracker.hpp"
 
+extern StringDataTracker	tracker;
+
 /*
 	these are for gather all the configuration data
 	and setting default values
@@ -15,90 +17,23 @@ class ConfigData
 		class	MemberData
 		{
 			public:
+				const std::string	parentName;
+				const int			parentLine;
 				const std::string	name;
 				int					setAtLine;
 				bool				isSet;
 				StringArr			*data;
 
-				MemberData(const std::string name);
+				MemberData(std::string pName, int pLine, std::string name);
 				~MemberData();
 
 				void	set(int argc, std::string args[], int line, std::string funcName, std::string className);
-				//	generic function to parse data string at index to a template value or return default
-				template<typename T> T get(T def, size_t idx = 0) const
-				{
-					if (!isSet)
-						return (def);
-
-					if (idx >= data -> num)
-						return (def);
-
-					try
-					{
-						T temp;
-						std::stringstream ss;
-						ss << (data -> arr[idx]);
-						ss >> temp;
-						return (temp);
-					}
-					catch(const std::exception& e)
-					{
-						return (def);
-					}
-
-					return (def);
-				};
-				//	function to parse data string at index to a bool or return default
-				bool	get(bool def, size_t idx = 0) const;
-				//	generic function to parse data string at index to a template value or return default as well as set got to indicate successful data retrival
-				template<typename T> T get(T def, bool & got, size_t idx = 0) const
-				{
-					got = false;
-
-					if (!isSet)
-						return (def);
-
-					if (idx >= data -> num)
-						return (def);
-
-					try
-					{
-						T temp;
-						std::stringstream ss;
-						ss << (data -> arr[idx]);
-						ss >> temp;
-						got = true;
-						return (temp);
-					}
-					catch(const std::exception& e)
-					{
-						return (def);
-					}
-
-					return (def);
-				};
-				//	generic function to parse all data strings to template values and put them in a vector
-				template<typename T> void get(std::vector<T> & vec) const
-				{
-					if (!isSet)
-						return;
-
-					for (size_t i = 0; i < data -> num; i++)
-					{
-						try
-						{
-							T temp;
-							std::stringstream ss;
-							ss << (data -> arr[i]);
-							ss >> temp;
-							vec.push_back(temp);
-						}
-						catch(const std::exception& e)
-						{
-							std::cout << "name:" << name << " idx:" << i << "data:" << data -> arr[i] << "\n";
-						}
-					}
-				}
+				std::string		get_string(std::string def) const;
+				size_t			get_size_t(size_t def) const;
+				unsigned short	get_ushort(unsigned short def) const;
+				bool			get_bool(bool def) const;
+				std::string		try_get_string(std::string def, bool & got) const;
+				void			get_string_vec(std::vector<std::string> & vec) const;
 				void	print(std::string tab);
 		};
 
@@ -112,7 +47,7 @@ class ConfigData
 				MemberData			allowed_methods;
 				MemberData			redirection;
 
-				ServerLocationData(std::string path);
+				ServerLocationData(int line, std::string path);
 				~ServerLocationData();
 
 				static void	set_allowed_methods(void * ptr, int line, int argc, std::string args[]);
@@ -134,7 +69,7 @@ class ConfigData
 				MemberData	directory_listing;
 				std::vector<ServerLocationData *> location;
 
-				ServerData();
+				ServerData(int line);
 				~ServerData();
 
 				static void	set_server_name(void * ptr, int line, int argc, std::string args[]);
@@ -156,7 +91,7 @@ class ConfigData
 				std::vector<ServerData *> server;
 				MemberData	server_timeout_time;
 
-				HttpData();
+				HttpData(int line);
 				~HttpData();
 
 				static void	*newServer(void * ptr, int line, int argc, std::string args[]);

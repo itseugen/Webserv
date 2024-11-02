@@ -19,6 +19,7 @@ class	StringDataTracker
 		size_t		newLines;
 		bool		isSingleQuote;
 		bool		isDoubleQuote;
+		bool		anyError;
 
 	public:
 		StringDataTracker();
@@ -43,4 +44,14 @@ class	StringDataTracker
 		void	report_not_content(char report, std::string type);
 		void	report_got_content(char report, std::string type);
 		void	report_extra_quotes(char report);
+		void	report_invalid_value(char report, std::string name, int line, std::string val);
+		template<typename T> void	report_default_value(char report, std::string name, std::string pName, int pLine, T val)
+		{
+			report_start(report);
+				std::cout
+				<< "Member '" << name << "'"
+				<< ", of Parent '" << pName << "' set at line:" << pLine << ", "
+				<< "was not set. default value '" << val << "'";
+			report_end(report);
+		}
 };

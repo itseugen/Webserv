@@ -177,3 +177,13 @@ std::string		StringHelp::remove_comments(std::string str)
 
 	return (trim);
 }
+
+bool			StringHelp::only_digits(std::string str)
+{
+	for (size_t i = 0; i < str.length(); i++)
+	{
+		if (str[i] < '0' || str[i] > '9')
+			return (false);
+	}
+	return (true);
+}

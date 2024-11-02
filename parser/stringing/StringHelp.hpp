@@ -27,4 +27,6 @@ class StringHelp
 		static bool			only_whitespace(std::string str);
 		static std::string	trim_whitespace(std::string str);
 		static std::string	remove_comments(std::string str);
+
+		static bool			only_digits(std::string str);
 };
