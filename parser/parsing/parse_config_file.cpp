@@ -102,6 +102,8 @@ std::vector<ServerData>	read_config_file(std::string file)
 	std::vector<ServerData>	server_vec;
 	{
 		ConfigData::HttpData * http_ptr = data.http[0];
+		size_t	global_timeout_time = http_ptr -> server_timeout_time.get_size_t(1000000);
+
 		for (size_t s = 0; s < http_ptr -> server.size(); s++)
 		{
 			ConfigData::ServerData * server_ptr = http_ptr -> server[s];
@@ -130,6 +132,8 @@ std::vector<ServerData>	read_config_file(std::string file)
 				server.locations.push_back(location);
 			}
 
+			server.global_timeout_time = global_timeout_time;
+
 			server_vec.push_back(server);
 		}
 	}
@@ -151,40 +155,40 @@ const char * ConfigErrorException::what() const throw()
 }
 
 
-int main(int argc, char * argv[])
-{
-	if (argc == 2)
-	{
-		std::vector<ServerData> server_vec = read_config_file(argv[1]);
-
-		std::cout << "\n";
-		for (size_t s = 0; s < server_vec.size(); s++)
-		{
-			ServerData const & server = server_vec[s];
-			std::cout << "\nserver [" << s << "]\n";
-			std::cout << "  server_name:" << server.server_name << "\n";
-			std::cout << "  port_to_listen:" << server.port_to_listen << "\n";
-			std::cout << "  root:" << server.root << "\n";
-			std::cout << "  index_file:" << server.index_file << "\n";
-			std::cout << "  keepalive_timeout:" << server.keepalive_timeout << "\n";
-			std::cout << "  max_request_size:" << server.max_request_size << "\n";
-			std::cout << "  send_timeout:" << server.send_timeout << "\n";
-			std::cout << "  directory_listing:" << server.directory_listing << "\n";
-
-			for (size_t l = 0; l < server.locations.size(); l++)
-			{
-				LocationData const & location = server.locations[l];
-				std::cout << "  location [" << l << "]\n";
-				std::cout << "    path:" << location.path << "\n";
-				std::cout << "    redirection:" << location.redirection << "\n";
-				std::cout << "    path_to_redirect:" << location.path_to_redirect << "\n";
-				std::cout << "    allowed_methods(";
-				for (size_t m = 0; m < location.allowed_methods.size(); m++)
-					std::cout << " " << location.allowed_methods[m];
-				std::cout << " )\n";
-			}
-		}
-		std::cout << "\n";
-	}
-	return (0);
-}
+// int main(int argc, char * argv[])
+// {
+// 	if (argc == 2)
+// 	{
+// 		std::vector<ServerData> server_vec = read_config_file(argv[1]);
+// 
+// 		std::cout << "\n";
+// 		for (size_t s = 0; s < server_vec.size(); s++)
+// 		{
+// 			ServerData const & server = server_vec[s];
+// 			std::cout << "\nserver [" << s << "]\n";
+// 			std::cout << "  server_name:" << server.server_name << "\n";
+// 			std::cout << "  port_to_listen:" << server.port_to_listen << "\n";
+// 			std::cout << "  root:" << server.root << "\n";
+// 			std::cout << "  index_file:" << server.index_file << "\n";
+// 			std::cout << "  keepalive_timeout:" << server.keepalive_timeout << "\n";
+// 			std::cout << "  max_request_size:" << server.max_request_size << "\n";
+// 			std::cout << "  send_timeout:" << server.send_timeout << "\n";
+// 			std::cout << "  directory_listing:" << server.directory_listing << "\n";
+// 
+// 			for (size_t l = 0; l < server.locations.size(); l++)
+// 			{
+// 				LocationData const & location = server.locations[l];
+// 				std::cout << "  location [" << l << "]\n";
+// 				std::cout << "    path:" << location.path << "\n";
+// 				std::cout << "    redirection:" << location.redirection << "\n";
+// 				std::cout << "    path_to_redirect:" << location.path_to_redirect << "\n";
+// 				std::cout << "    allowed_methods(";
+// 				for (size_t m = 0; m < location.allowed_methods.size(); m++)
+// 					std::cout << " " << location.allowed_methods[m];
+// 				std::cout << " )\n";
+// 			}
+// 		}
+// 		std::cout << "\n";
+// 	}
+// 	return (0);
+// }
