@@ -1,7 +1,7 @@
 # <p align="center">**Webserv**</p>
 # <p align="center"> <sup>A lightweight HTTP Server in </sup> [![My Skills](https://skillicons.dev/icons?i=cpp)](https://skillicons.dev)<sup>
 
->## <p align="center"> <sup>Team project created by: [Eugen](https://github.com/itseugen),  [Mary Kate](https://github.com/MaryKateEvan) & [Dustin](https://github.com/StaubMaster)  </sup></p>
+>## <p align="center"> <sup>Team project created by: [Eugen](https://github.com/itseugen),  [Mary Kate](https://github.com/MKcodes2) & [Dustin](https://github.com/StaubMaster)  </sup></p>
 
 ## 📝 Description
 Webserv is our custom implementation of an **HTTP/1.1** server written in **C++17**. Designed for efficiency and compliance with HTTP standards, our server supports **non-blocking I/O operations** and is compatible with modern web browsers. It offers essential functionality for hosting static and dynamic content while ensuring scalability and flexibility.
@@ -62,7 +62,7 @@ Webserv is our custom implementation of an **HTTP/1.1** server written in **C++1
 ## ⚙️ Installation
 1. Clone the repository:
 ```bash
-git clone https://github.com/MaryKateEvan/Webserv.git
+git clone https://github.com/itseugen/Webserv.git
 ```
 2. Navigate to the project's directory:
 ```bash
@@ -76,7 +76,7 @@ make
 ```bash
 ./webserv config_files/<file_of_your_choice>
 ```
-&nbsp; &nbsp; 💡 You can also run just `./webserv`: in this case, the server uses a [default configuration](https://github.com/MaryKateEvan/Webserv/blob/main/config_files/default.conf)
+&nbsp; &nbsp; 💡 You can also run just `./webserv`: in this case, the server uses a [default configuration](https://github.com/itseugen/Webserv/blob/main/config_files/default.conf)
 
 ---
 
@@ -86,12 +86,12 @@ make
 You can access any of the configured servers  in a web-browser by typing in the search-bar:<br>
 🔎 &nbsp;  ***localhost:<port_it_listens_to>***
 
- For example, if you ran `./webserv` which uses the [`default.conf`](https://github.com/MaryKateEvan/Webserv/blob/main/config_files/default.conf), there are 3 servers configured there, that listen to the ports 8080, 8081, and 8082, respectively. So you could access them on the web-broswer by typing:<br>
+ For example, if you ran `./webserv` which uses the [`default.conf`](https://github.com/itseugen/Webserv/blob/main/config_files/default.conf), there are 3 servers configured there, that listen to the ports 8080, 8081, and 8082, respectively. So you could access them on the web-broswer by typing:<br>
  - ***localhost:8080***, or <br>
  - ***localhost:8081***, or <br>
  - ***localhost:8082***
 
- And according to what server you are accessing, you can browse/do different things there, depending on their configuration. For example in the [default.conf](https://github.com/MaryKateEvan/Webserv/blob/main/config_files/default.conf):
+ And according to what server you are accessing, you can browse/do different things there, depending on their configuration. For example in the [default.conf](https://github.com/itseugen/Webserv/blob/main/config_files/default.conf):
  - `server1`, which listens to port `8080`, allows all methods, redirections (e.g. **localhost:8080/google**), and has a big body size, so there you can upload even large files.
  - `server2`, which listens to port `8081`, allows all methods and redirections, but you can only upload small images up to 200KB and doesn't allow directory listing.
  - `server3`, which listens to port `8082`, allows all methods and has a big body size, but it doesn't redirect because the GET method is not configured in its redirections.
@@ -125,4 +125,4 @@ You can close the server by simply clicking `CTRL + C` on the terminal where you
 ---
 
 ## 📜 License
-This project is released under the [MIT License](https://github.com/MaryKateEvan/Webserv/blob/main/LICENSE). Contributions are welcome!
+This project is released under the [MIT License](https://github.com/itseugen/Webserv/blob/main/LICENSE). Contributions are welcome!
